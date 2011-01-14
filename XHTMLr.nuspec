@@ -1,0 +1,12 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package>
+    <metadata>
+        <id>XHTMLr</id>
+        <version>1.0.0</version>
+        <authors>Andy Edinborough</authors>
+        <description>Normalizes HTML into XML that can be parsed and manipulated.</description>
+        <language>en-US</language>
+        <licenseUrl>http://xhtmlr.codeplex.com/license</licenseUrl>
+        <projectUrl>http://xhtmlr.codeplex.com/</projectUrl>
+    </metadata>
+</package>
