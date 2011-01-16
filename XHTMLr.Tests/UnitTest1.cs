@@ -31,9 +31,18 @@ namespace XHTMLr.Tests {
         //
         #endregion
 
+        private string _Html;
+        public string Html {
+            get {
+                return _Html ?? (_Html = System.IO.File.ReadAllText(
+                    System.IO.Path.GetFullPath(System.IO.Path.Combine(TestContext.TestRunDirectory, @"..\..\XHTMLr.Tests\Bad.html"))
+                    ));
+            }
+        }
+
         [TestMethod]
         public void NoNestedPs() {
-            var ugly = @"<p>Test<p>Test";
+            var ugly = Html;
 
             var doc = ParseHtml(ref ugly);
 
@@ -45,8 +54,7 @@ namespace XHTMLr.Tests {
 
         [TestMethod]
         public void AddsHtmlBodyTags() {
-            var html = @"  some text <p>First paragraph
-                    <p style=COLOR:RED>Second paragraph";
+            var html = Html;
 
             var doc = ParseHtml(ref html);
 
@@ -60,8 +68,7 @@ namespace XHTMLr.Tests {
 
         [TestMethod]
         public void NormalizesAttributes() {
-            var html = @"  some text <p>First paragraph
-                    <p style=COLOR:RED;>Second paragraph";
+            var html = Html;
 
             var doc = ParseHtml(ref html);
 
@@ -70,13 +77,22 @@ namespace XHTMLr.Tests {
 
         [TestMethod]
         public void FixesComments() {
-            var html = @"<p>Test <!-- <p STYLE=COLOR:RED;>Test";
+            var html = Html;
 
             var doc = ParseHtml(ref html);
 
             html.Should().Contain("-->");
             var ps = doc.Root.Descendants("p");
-            ps.Count().Should().Equal(1);
+            ps.Count().Should().Equal(2);
+        }
+
+        [TestMethod]
+        public void ParseForm() {
+            var form = Form.GetForms(Html).FirstOrDefault();
+
+            form["email"].Should().Equal("test@test.com");
+            form.Action.Should().Equal("submit.cgi");
+            form.Method.ToUpper().Should().Equal("GET");
         }
 
 
