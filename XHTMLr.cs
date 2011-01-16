@@ -95,7 +95,7 @@ namespace XHTMLr {
         [Flags()]
         public enum Options {
             None = 0, EntitiesOnly = 1, EnforceHtmlElement = 2,
-            RemoveExtraWhitespace = 4, RemoveXMLNS = 8, RemoveComments = 16, Pretty = 32,
+            RemoveExtraWhitespace = 4, RemoveXMLNS = 8, RemoveComments = 16, Pretty = 32, CleanUpWordHTML = 64,
             Default = EnforceHtmlElement | RemoveXMLNS
         }
 
@@ -105,6 +105,10 @@ namespace XHTMLr {
         }
 
         private string Process(string html, Options options = Options.Default) {
+            if (options.Contains(Options.CleanUpWordHTML)) {
+                html = WordCleanup.CleanWordHtml(html);
+            }
+
             using (Input = new StringReader(html))
             using (Output = new StringWriter()) {
                 EntitiesOnly = options.Contains(Options.EntitiesOnly);

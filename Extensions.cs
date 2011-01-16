@@ -3,6 +3,12 @@ using System.Collections;
 
 namespace XHTMLr {
     internal static class Extensions {
+        public static string NotEmpty(this string input, string @default) {
+            return input.IsNullOrEmpty() ? @default : input;
+        }
+        public static string NotNull(this string input) {
+            return input ?? string.Empty;
+        }
 
         public static bool IsNullOrEmpty(this IEnumerable items) {
             if (items == null) return true;
