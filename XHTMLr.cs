@@ -399,8 +399,8 @@ namespace XHTMLr {
                         return;
                     }
 
-                    if (!EnforceHtmlElement && OpenTags.Count == 0 && _CommonTags.Contains(tagName))
-                        EnforceHtmlElement = true;
+                    //if (!EnforceHtmlElement && OpenTags.Count == 0 && _CommonTags.Contains(tagName))
+                    //    EnforceHtmlElement = true;
 
                     if (EnforceHtmlElement) {
                         if (tagName != "html" && OpenTags.Count == 0) {
