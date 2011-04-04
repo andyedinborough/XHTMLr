@@ -6,22 +6,26 @@ using System.Xml.Linq;
 namespace XHTMLr {
 
     public class Form : NameValueCollection {
+        public Form() {
+            Labels = new NameValueCollection();
+        }
+
         public string Method { get; set; }
         public string Name { get; set; }
         public string Action { get; set; }
+        public NameValueCollection Labels { get; private set; }
 
-        private static Form Parse(XElement node) {
-            Form form = new Form();
-            form.Method = ((string)node.Attribute("method")).NotEmpty("GET");
-            form.Action = (string)node.Attribute("action");
-            form.Name = (string)node.Attribute("name");
+        public void Load(XElement node) {
+            Method = ((string)node.Attribute("method")).NotEmpty("GET");
+            Action = (string)node.Attribute("action");
+            Name = (string)node.Attribute("name");
 
             var nodes = node.Descendants("input");
             if (!nodes.IsNullOrEmpty())
                 foreach (var input in nodes) {
                     string name = (string)input.Attribute("name");
                     if (!name.IsNullOrEmpty()) {
-                        form[name] = (string)input.Attribute("value");
+                        this[name] = (string)input.Attribute("value");
                     }
                 }
 
@@ -34,12 +38,18 @@ namespace XHTMLr {
                             ?? select.Descendants("option").FirstOrDefault();
 
                         if (option != null) {
-                            form[name] = ((string)option.Attribute("value")).NotEmpty(option.Value.NotNull().Trim());
+                            this[name] = ((string)option.Attribute("value")).NotEmpty(option.Value.NotNull().Trim());
                         }
                     }
                 }
 
-            return form;
+            nodes = node.Descendants("label");
+            if (!nodes.IsNullOrEmpty())
+                foreach (var label in nodes) {
+                    var @for = (string)label.Attribute("for");
+                    if (@for.IsNullOrEmpty()) continue;
+                    Labels[@for] = label.Value;
+                }
         }
 
         public static Form[] GetForms(string html) {
@@ -51,7 +61,9 @@ namespace XHTMLr {
             var forms = new List<Form>();
             if (doc != null)
                 foreach (var frm in doc.Descendants("form")) {
-                    forms.Add(Parse(frm));
+                    var form = new Form();
+                    form.Load(frm);
+                    forms.Add(form);
                 }
             return forms.ToArray();
         }

@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 namespace XHTMLr {
-    internal class WordCleanup {
+    public class WordCleanup {
 
         private static Regex rxFixes = new Regex(@"
             (<!--(\w|\W)+?-->)
@@ -17,11 +17,11 @@ namespace XHTMLr {
                 | (\s+[a-z]+\=[a-z]+)
             ", RegexOptions.Compiled | RegexOptions.IgnorePatternWhitespace | RegexOptions.IgnoreCase);
 
-        internal static string CleanWordHtml(string html) {
+        public static string CleanWordHtml(string html) {
             return rxFixes.Replace(html, string.Empty).Trim();
         }
 
-        internal static string FixEntities(byte[] html) {
+        public static string FixEntities(byte[] html) {
             var ret = new StringBuilder();
             int k;
             for (int i = 0; i < html.Length; i++) {
