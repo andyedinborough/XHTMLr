@@ -83,6 +83,8 @@ namespace XHTMLr {
                 }
             }
 
+            if (value == 153) value = 8482; //convert html valid TM to an xml valid one
+
             if (IsLegalXmlChar(value)) //System.Xml.Linq.XDocument will puke on invalid XML characters even if they're encoded
                 return "&#" + value + ";";
             else return string.Empty;
@@ -221,9 +223,9 @@ namespace XHTMLr {
         private void ReadEntity() {
             var block = Read(Modes.entity);
 
-            if (block.Last == ';') {
+            if (block.Last == ';' || _Whitespace.Contains(block.Last)) {
                 Out(Entity(block.Text));
-
+                if (block.Last != ';') Out(block.Last);
                 Next = ReadText;
 
             } else {
@@ -427,6 +429,7 @@ namespace XHTMLr {
                         NumTagsWritten++;
                     }
 
+                    bool disable = false;
                     while (block.Last != '>') {
                         ReadWhileWhitespace();
                         block = ReadAttrName();
@@ -437,7 +440,7 @@ namespace XHTMLr {
                         if (attrName.Length == 0
                             || !IsLetter(attrName[0])
                             || attrName.Contains(':')) continue;
-                        if (RemoveXmlns && attrName == "xmlns") continue;
+
                         ReadWhileWhitespace();
 
                         char? c = Peek();
@@ -469,7 +472,7 @@ namespace XHTMLr {
                             attrValue = '"' + attrName + '"';
                         }
 
-                        if (enabled) {
+                        if (enabled && !(RemoveXmlns && attrName == "xmlns")) {
                             attrValue = ToXml(attrValue, Options.EntitiesOnly);
 
                             if (attrs.ContainsKey(attrName))
