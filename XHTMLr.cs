@@ -429,7 +429,6 @@ namespace XHTMLr {
                         NumTagsWritten++;
                     }
 
-                    bool disable = false;
                     while (block.Last != '>') {
                         ReadWhileWhitespace();
                         block = ReadAttrName();
