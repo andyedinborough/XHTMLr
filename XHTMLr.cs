@@ -98,6 +98,7 @@ namespace XHTMLr {
         public enum Options {
             None = 0, EntitiesOnly = 1, EnforceHtmlElement = 2,
             RemoveExtraWhitespace = 4, RemoveXMLNS = 8, RemoveComments = 16, Pretty = 32, CleanUpWordHTML = 64,
+            KeepTagCase = 128,
             Default = EnforceHtmlElement | RemoveXMLNS
         }
 
@@ -118,6 +119,7 @@ namespace XHTMLr {
                 RemoveExtraWhitespace = options.Contains(Options.RemoveExtraWhitespace);
                 RemoveComments = options.Contains(Options.RemoveComments);
                 RemoveXmlns = options.Contains(Options.RemoveXMLNS);
+                KeepTagCase = options.Contains(Options.KeepTagCase);
 
                 while (Next != null) {
                     var next = Next;
@@ -161,6 +163,7 @@ namespace XHTMLr {
         public bool RemoveExtraWhitespace { get; set; }
         public bool RemoveComments { get; set; }
         public bool RemoveXmlns { get; set; }
+        public bool KeepTagCase { get; set; }
         public long NumTagsWritten { get; set; }
         public Action Next { get; set; }
 
@@ -308,7 +311,7 @@ namespace XHTMLr {
                 block = ReadTagName();
             }
 
-            var tagName = stripPrefix(block.Text.ToLower());
+            var tagName = stripPrefix(KeepTagCase ? block.Text : block.Text.ToLower());
 
             if (block.Text.Length > 0 && block.Text[0] == '!') {
                 if (block.Text.Left(3) == "!--") {
@@ -334,6 +337,18 @@ namespace XHTMLr {
                 }
 
                 Next = ReadText;
+
+            } else if (tagName.Length == 0 && block.Last == '?') {
+                string text = ReadUntil("?>");
+                //if (enforceHtmlElement && tagName.StartsWith("?xml"))
+                //    enforceHtmlElement = false;
+                ////if (openTags.Count == 0 && !hasXmlDeclaration) {
+                ////    Out('<' + tagName + ' ' + text.TrimStart());
+                ////    enforceHtmlElement = false;
+                ////    hasXmlDeclaration = true;
+                ////}
+                Next = ReadText;
+                return;
 
             } else if (tagName.Length == 0 || block.Last == '<' || !IsLetter(tagName[0]) || tagName.Contains(':')) {
                 if (OpenTags.Count > 0) {
@@ -388,18 +403,7 @@ namespace XHTMLr {
                     //    AutoClose(new[] { "frame" }, new[] { "frame" });
                     //}
 
-                    if (tagName[0] == '?') {
-                        string text = ReadUntil("?>");
-                        //if (enforceHtmlElement && tagName.StartsWith("?xml"))
-                        //    enforceHtmlElement = false;
-                        ////if (openTags.Count == 0 && !hasXmlDeclaration) {
-                        ////    Out('<' + tagName + ' ' + text.TrimStart());
-                        ////    enforceHtmlElement = false;
-                        ////    hasXmlDeclaration = true;
-                        ////}
-                        Next = ReadText;
-                        return;
-                    }
+
 
                     //if (!EnforceHtmlElement && OpenTags.Count == 0 && _CommonTags.Contains(tagName))
                     //    EnforceHtmlElement = true;
@@ -433,7 +437,7 @@ namespace XHTMLr {
                         ReadWhileWhitespace();
                         block = ReadAttrName();
                         if (block.Text.Length == 0 && block.Last == 0) break;
-                        var attrName = block.Text.ToLower();
+                        var attrName = KeepTagCase ? block.Text : block.Text.ToLower();
 
                         attrName = stripPrefix(attrName);
                         if (attrName.Length == 0
@@ -525,7 +529,7 @@ namespace XHTMLr {
             if (OpenTags.Count == 0 && !EntitiesOnly) value = value.Trim();
             if (value.Length == 0) return;
 
-            if (!EntitiesOnly && OpenTags.Count == 0) {
+            if (!EntitiesOnly && OpenTags.Count == 0 && EnforceHtmlElement) {
                 OpenTags.Add("html");
                 OpenTags.Add("body");
                 Out("<html><body>");
