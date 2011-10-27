@@ -12,6 +12,8 @@
     <AssemblyName>XHTMLr</AssemblyName>
     <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'" />
+    <RestorePackages>true</RestorePackages>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -48,6 +50,7 @@
     <Compile Include="XHTMLr.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Create-Package.ps1" />
     <None Include="XHTMLr.nuspec" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
@@ -59,6 +62,7 @@ copy "$(SolutionDir)bin\Release\*.*" "$(SolutionDir)bin\Package\lib\"
 copy "$(SolutionDir)XHTMLr.nuspec" "$(SolutionDir)bin\Package\XHTMLr.nuspec"
 "e:\Repos\Packages\NuGet.exe" pack "$(SolutionDir)bin\Package\XHTMLr.nuspec" /o "$(SolutionDir)\bin\Package"</PostBuildEvent>
   </PropertyGroup>
+  <Import Project="$(SolutionDir)\.nuget\NuGet.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

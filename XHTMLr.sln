@@ -4,17 +4,12 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XHTMLr", "XHTMLr.csproj", "{F5CB8B3B-76FC-46EC-8BA8-CD073FFE5063}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{00A73505-0811-4AA5-BA34-04D7FA9E89B1}"
-	ProjectSection(SolutionItems) = preProject
-		Local.testsettings = Local.testsettings
-		TraceAndTestImpact.testsettings = TraceAndTestImpact.testsettings
-		XHTMLr1.vsmdi = XHTMLr1.vsmdi
-	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "XHTMLr.Tests", "XHTMLr.Tests\XHTMLr.Tests.csproj", "{94451748-05AF-4B34-A571-E69E8BA5BA6F}"
 EndProject
 Global
 	GlobalSection(TestCaseManagementSettings) = postSolution
-		CategoryFile = XHTMLr1.vsmdi
+		CategoryFile = XHTMLr.vsmdi
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
