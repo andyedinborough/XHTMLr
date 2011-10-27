@@ -1,16 +1,26 @@
 syntax: glob
 
 _UpgradeReport_Files\*
-TestResults\*
 _vti_*
 *.suo
 *.user
 *.FileListAbsolute.txt
 bin\*
+sql\debug\*
+sql\release\*
+temp\*
 Published\*
 obj\*
 Cache\*
+*].jpg
+*].png
+*).jpg
+*).png
+*.dbmdl
+*.Publish.xml
+*.schemaview
 *.ncb
+*.orig
 *.nlb
 *.aps
 *.clw
@@ -32,8 +42,14 @@ Cache\*
 *.sbr
 *.scc
 *.sig
+*.docstates
 *.vssscc
+.hgignore
 thumbs.db
 _ReSharper*\*
 error-*.xml
+TestResults\*
 *.vsp
+Spam\*
+packages\*
+bin\*
