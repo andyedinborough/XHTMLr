@@ -320,14 +320,14 @@ namespace XHTMLr {
                             Out("<!--");
                             block.Text = block.Text.Substring(3);
                             if (block.Text.EndsWith("--")) block.Text = block.Text.Substring(0, block.Text.Length - 2);
-                            Out(ToXml(block.Text.Replace("-", "&#45;"), Options.EntitiesOnly));
+              Out(block.Text.TrimEnd('-').Replace("--", "  "));
                             Out("-->");
                         }
                     } else {
                         var comment = ReadUntil("-->");
                         if (!RemoveComments && comment.Length >= 3) {
                             Out("<!--");
-                            Out(ToXml((block.Text.Substring(3) + block.Last + comment.Substring(0, comment.Length - 3)).Replace("-", "&#45;"), Options.EntitiesOnly));
+              Out((block.Text.Substring(3) + block.Last + comment.Substring(0, comment.Length - 3)).TrimEnd('-').Replace("--", "  "));
                             Out("-->");
                         }
                     }

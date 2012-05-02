@@ -55,12 +55,8 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>md "$(SolutionDir)\bin\Package\"
-md "$(SolutionDir)\bin\Package\lib\"
-del "$(SolutionDir)\bin\Package\*.*" /q
-copy "$(SolutionDir)bin\Release\*.*" "$(SolutionDir)bin\Package\lib\"
-copy "$(SolutionDir)XHTMLr.nuspec" "$(SolutionDir)bin\Package\XHTMLr.nuspec"
-"e:\Repos\Packages\NuGet.exe" pack "$(SolutionDir)bin\Package\XHTMLr.nuspec" /o "$(SolutionDir)\bin\Package"</PostBuildEvent>
+    <PostBuildEvent>
+    </PostBuildEvent>
   </PropertyGroup>
   <Import Project="$(SolutionDir)\.nuget\NuGet.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
