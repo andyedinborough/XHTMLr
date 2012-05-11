@@ -44,6 +44,15 @@ namespace XHTMLr {
           }
         }
 
+      nodes = node.Descendants("textarea");
+      if (!nodes.IsNullOrEmpty())
+        foreach (var input in nodes) {
+          string name = (string)input.Attribute("name");
+          if (!name.IsNullOrEmpty()) {
+            this[name] = (string)input.Value;
+          }
+        }
+
       nodes = node.Descendants("label");
       if (!nodes.IsNullOrEmpty())
         foreach (var label in nodes) {

@@ -51,7 +51,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Create-Package.ps1" />
-    <None Include="XHTMLr.nuspec" />
+    <None Include="XHTMLr.nuspec">
+      <SubType>Designer</SubType>
+    </None>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
