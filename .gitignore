@@ -56,3 +56,5 @@ obj/*
 packages/*
 */bin/*
 */obj/*
+*.mdf
+*.ldf
