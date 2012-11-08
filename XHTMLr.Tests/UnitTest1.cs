@@ -1,106 +1,132 @@
-﻿using System.Linq;
-using System.Xml.Linq;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Should.Fluent;
+using System;
+using System.Linq;
+using System.Xml.Linq;
 
 namespace XHTMLr.Tests {
-    [TestClass]
-    public class UnitTest1 {
+	[TestClass]
+	public class UnitTest1 {
 
-        public TestContext TestContext { get; set; }
+		public TestContext TestContext { get; set; }
 
-        #region Additional test attributes
-        //
-        // You can use the following additional attributes as you write your tests:
-        //
-        // Use ClassInitialize to run code before running the first test in the class
-        // [ClassInitialize()]
-        // public static void MyClassInitialize(TestContext testContext) { }
-        //
-        // Use ClassCleanup to run code after all tests in a class have run
-        // [ClassCleanup()]
-        // public static void MyClassCleanup() { }
-        //
-        // Use TestInitialize to run code before running each test 
-        // [TestInitialize()]
-        // public void MyTestInitialize() { }
-        //
-        // Use TestCleanup to run code after each test has run
-        // [TestCleanup()]
-        // public void MyTestCleanup() { }
-        //
-        #endregion
+		[TestMethod]
+		public void TestPage() {
+			using (var web = new System.Net.WebClient()) {
+				var html = web.DownloadString("http://ch.tbe.taleo.net/CH11/ats/careers/requisition.jsp?org=INTERTEK&cws=4&rid=3291&utm_source=linkup&utm_medium=referrer");
 
-        private string _Html;
-        public string Html {
-            get {
-                return _Html ?? (_Html = System.IO.File.ReadAllText(
-                    System.IO.Path.GetFullPath(System.IO.Path.Combine(TestContext.TestRunDirectory, @"..\..\XHTMLr.Tests\Bad.html"))
-                    ));
-            }
-        }
+				var xml = XHTML.ToXml(html, XHTML.Options.Default);
+				var xdoc = XDocument.Parse(xml);
+				xdoc.Descendants()
+					.FirstOrDefault(x => (string)x.Attribute("id") == "taleoContent")
+					.Should().Not.Be.Null();
+			}
+		}
 
-        [TestMethod]
-        public void NoNestedPs() {
-            var ugly = Html;
+		[TestMethod]
+		public void TestSpeed() {
+			var html = Html;
+			var times = 1000;
 
-            var doc = ParseHtml(ref ugly);
+			var htmlAgilityPack = Time(times, () => {
+				var doc = new HtmlAgilityPack.HtmlDocument();
+				doc.LoadHtml(html);
+				var input = doc.DocumentNode.Descendants("input").FirstOrDefault();
+				var value = input.GetAttributeValue("value", string.Empty);
+				value.Should().Equal("test@test.com");
+			});
 
-            var ps = doc.Root.Descendants("p");
-            ps.All(p => p.Descendants("p").Count() == 0).Should().Be.True();
+			var xhtmlr = Time(times, () => {
+				var doc = System.Xml.Linq.XDocument.Parse(XHTML.ToXml(html));
+				var input = doc.Descendants("input").FirstOrDefault();
+				var value = (string)input.Attribute("value");
+				value.Should().Equal("test@test.com");
+			});
 
-            ps.Count().Should().Equal(2);
-        }
+			Console.WriteLine("HTML Agility Pack: {0}ms", htmlAgilityPack);
+			Console.WriteLine("           XHTMLr: {0}ms", xhtmlr);
+		}
 
-        [TestMethod]
-        public void AddsHtmlBodyTags() {
-            var html = Html;
+		private long Time(int times, Action action) {
+			var stopwatch = new System.Diagnostics.Stopwatch();
+			stopwatch.Start();
+			while (times-- > 0) {
+				action();
+			}
+			stopwatch.Stop();
+			return stopwatch.ElapsedMilliseconds;
+		}
 
-            var doc = ParseHtml(ref html);
+		private string _Html;
+		public string Html {
+			get {
+				return _Html ?? (_Html = System.IO.File.ReadAllText(
+						System.IO.Path.GetFullPath(System.IO.Path.Combine(TestContext.TestRunDirectory, @"..\..\XHTMLr.Tests\Bad.html"))
+						));
+			}
+		}
 
-            doc.Root.Name.LocalName.Should().Equal("html");
-            doc.Root.Elements().First().Name.LocalName.Should().Equal("body");
+		[TestMethod]
+		public void NoNestedPs() {
+			var ugly = Html;
 
-            doc.Descendants("html").Count().Should().Equal(1);
-            doc.Descendants("body").Count().Should().Equal(1);
-            doc.Descendants("head").Count().Should().Be.InRange(0, 1);
-        }
+			var doc = ParseHtml(ref ugly);
 
-        [TestMethod]
-        public void NormalizesAttributes() {
-            var html = Html;
+			var ps = doc.Root.Descendants("p");
+			ps.All(p => p.Descendants("p").Count() == 0).Should().Be.True();
 
-            var doc = ParseHtml(ref html);
+			ps.Count().Should().Equal(2);
+		}
 
-            html.Should().Contain("style=\"COLOR:RED;\"");
-        }
+		[TestMethod]
+		public void AddsHtmlBodyTags() {
+			var html = Html;
 
-        [TestMethod]
-        public void FixesComments() {
-            var html = Html;
+			var doc = ParseHtml(ref html);
 
-            var doc = ParseHtml(ref html);
+			doc.Root.Name.LocalName.Should().Equal("html");
+			doc.Root.Elements().First().Name.LocalName.Should().Equal("body");
 
-            html.Should().Contain("-->");
-            var ps = doc.Root.Descendants("p");
-            ps.Count().Should().Equal(2);
-        }
+			doc.Descendants("html").Count().Should().Equal(1);
+			doc.Descendants("body").Count().Should().Equal(1);
+			doc.Descendants("head").Count().Should().Be.InRange(0, 1);
+		}
 
-        [TestMethod]
-        public void ParseForm() {
-            var form = Form.GetForms(Html).FirstOrDefault();
+		[TestMethod]
+		public void NormalizesAttributes() {
+			var html = Html;
 
-            form["email"].Should().Equal("test@test.com");
-            form.Action.Should().Equal("submit.cgi");
-            form.Method.ToUpper().Should().Equal("GET");
-        }
+			var doc = ParseHtml(ref html);
+
+			html.Should().Contain("style=\"COLOR:RED;\"");
+		}
+
+		[TestMethod]
+		public void FixesComments() {
+			var html = Html;
+
+			var doc = ParseHtml(ref html);
+
+			html.Should().Contain("-->");
+			var ps = doc.Root.Descendants("p");
+			ps.Count().Should().Equal(2);
+		}
+
+		[TestMethod]
+		public void ParseForm() {
+			var form = Form.GetForms(Html).FirstOrDefault();
+
+			form["email"].Should().Equal("test@test.com");
+			form.Action.Should().Equal("submit.cgi");
+			form.Method.ToUpper().Should().Equal("GET");
+		}
 
 
-        private XDocument ParseHtml(ref string html, XHTML.Options options = XHTML.Options.Default) {
-            //      html = XHTML.ToXml(html, options);
-            html = XHTML.ToXml(html, XHTML.Options.Default | XHTML.Options.Pretty);
+		private XDocument ParseHtml(ref string html, XHTML.Options options = XHTML.Options.Default) {
+			//      html = XHTML.ToXml(html, options);
+			html = XHTML.ToXml(html, XHTML.Options.Default | XHTML.Options.Pretty);
 
-            return XDocument.Parse(html);
-        }
-    }
+			return XDocument.Parse(html);
+		}
+	}
 }
