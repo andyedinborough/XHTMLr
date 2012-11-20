@@ -35,11 +35,26 @@ namespace XHTMLr {
 			get {
 				return (string)_form.Attribute("action") ?? string.Empty;
 			}
+			set {
+				_form.SetAttributeValue("action", value);
+			}
 		}
 
 		public string Method {
 			get {
 				return ((string)_form.Attribute("method")).NotEmpty("get");
+			}
+			set {
+				_form.SetAttributeValue("method", value);
+			}
+		}
+
+		public string EncType {
+			get {
+				return ((string)_form.Attribute("enctype")).NotEmpty("application/x-www-form-urlencoded");
+			}
+			set {
+				_form.SetAttributeValue("enctype", value);
 			}
 		}
 
