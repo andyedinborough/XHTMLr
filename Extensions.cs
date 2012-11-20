@@ -98,10 +98,6 @@ namespace XHTMLr {
 			return doc.Descendants("form").Select(x => new Form(x)).ToArray();
 		}
 
-		public static Form[] GetForms(string html) {
-			return XDocument.Parse(XHTML.ToXml(html)).GetForms();
-		}
-
 		private static void SetField(XElement input, string value) {
 			switch (input.Name.LocalName) {
 				case "button":
