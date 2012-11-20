@@ -27,6 +27,10 @@ namespace XHTMLr {
 			return XDocument.Parse(XHTML.ToXml(html)).GetForms();
 		}
 
+		public static Form[] GetForms(XDocument xdoc) {
+			return xdoc.GetForms();
+		}
+
 		public string Action {
 			get {
 				return (string)_form.Attribute("action") ?? string.Empty;
