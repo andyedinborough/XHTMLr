@@ -19,9 +19,12 @@ namespace XHTMLr {
 
 	public class Form {
 		XElement _form;
+		public Form() : this(new XElement("form")) { }
 		public Form(XElement form) {
 			_form = form;
 		}
+
+		public XElement Element { get { return _form; } }
 
 		public static Form[] GetForms(string html) {
 			return XDocument.Parse(XHTML.ToXml(html)).GetForms();
@@ -29,6 +32,10 @@ namespace XHTMLr {
 
 		public static Form[] GetForms(XDocument xdoc) {
 			return xdoc.GetForms();
+		}
+
+		public void Remove(string name) {
+			_form.GetElementsByName(name).Remove();
 		}
 
 		public string Action {
