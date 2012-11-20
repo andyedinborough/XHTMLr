@@ -1,6 +1,7 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Should.Fluent;
 using System.Linq;
+using System;
 using System.Xml.Linq;
 
 namespace XHTMLr.Tests {
@@ -9,27 +10,52 @@ namespace XHTMLr.Tests {
 
 		public TestContext TestContext { get; set; }
 
-		#region Additional test attributes
-		//
-		// You can use the following additional attributes as you write your tests:
-		//
-		// Use ClassInitialize to run code before running the first test in the class
-		// [ClassInitialize()]
-		// public static void MyClassInitialize(TestContext testContext) { }
-		//
-		// Use ClassCleanup to run code after all tests in a class have run
-		// [ClassCleanup()]
-		// public static void MyClassCleanup() { }
-		//
-		// Use TestInitialize to run code before running each test 
-		// [TestInitialize()]
-		// public void MyTestInitialize() { }
-		//
-		// Use TestCleanup to run code after each test has run
-		// [TestCleanup()]
-		// public void MyTestCleanup() { }
-		//
-		#endregion
+		[TestMethod]
+		public void TestPage() {
+			using (var web = new System.Net.WebClient()) {
+				var html = web.DownloadString("http://ch.tbe.taleo.net/CH11/ats/careers/requisition.jsp?org=INTERTEK&cws=4&rid=3291&utm_source=linkup&utm_medium=referrer");
+
+				var xml = XHTML.ToXml(html, XHTML.Options.Default);
+				var xdoc = XDocument.Parse(xml);
+				xdoc.Descendants()
+					.FirstOrDefault(x => (string)x.Attribute("id") == "taleoContent")
+					.Should().Not.Be.Null();
+			}
+		}
+
+		[TestMethod]
+		public void TestSpeed() {
+			var html = Html;
+			var times = 1000;
+
+			var htmlAgilityPack = Time(times, () => {
+				var doc = new HtmlAgilityPack.HtmlDocument();
+				doc.LoadHtml(html);
+				var input = doc.DocumentNode.Descendants("input").FirstOrDefault();
+				var value = input.GetAttributeValue("value", string.Empty);
+				value.Should().Equal("test@test.com");
+			});
+
+			var xhtmlr = Time(times, () => {
+				var doc = System.Xml.Linq.XDocument.Parse(XHTML.ToXml(html));
+				var input = doc.Descendants("input").FirstOrDefault();
+				var value = (string)input.Attribute("value");
+				value.Should().Equal("test@test.com");
+			});
+
+			Console.WriteLine("HTML Agility Pack: {0}ms", htmlAgilityPack);
+			Console.WriteLine("           XHTMLr: {0}ms", xhtmlr);
+		}
+
+		private long Time(int times, Action action) {
+			var stopwatch = new System.Diagnostics.Stopwatch();
+			stopwatch.Start();
+			while (times-- > 0) {
+				action();
+			}
+			stopwatch.Stop();
+			return stopwatch.ElapsedMilliseconds;
+		}
 
 		private string _Html;
 		public string Html {
@@ -86,7 +112,7 @@ namespace XHTMLr.Tests {
 
 		[TestMethod]
 		public void ParseForm() {
-			var form = new Form(XDocument.Parse(XHTML.ToXml(Html)).Descendants("form").FirstOrDefault());
+			var form = Form.GetForms(Html).FirstOrDefault();
 			form["email"].Should().Equal("test@test.com");
 			form.Action.Should().Equal("submit.cgi");
 			form.Method.ToUpper().Should().Equal("GET");
