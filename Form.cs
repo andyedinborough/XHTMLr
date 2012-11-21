@@ -68,8 +68,7 @@ namespace XHTMLr {
 		public IEnumerable<string> Keys {
 			get {
 				return _form.Descendants()
-					.OfType<XAttribute>()
-					.Where(x => x.Name.LocalName == "name")
+					.SelectMany(x => x.Attributes("name"))
 					.Select(x => x.Value).Distinct();
 			}
 		}

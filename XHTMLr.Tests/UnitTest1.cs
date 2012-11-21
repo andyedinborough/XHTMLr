@@ -1,7 +1,7 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Should.Fluent;
-using System.Linq;
 using System;
+using System.Linq;
 using System.Xml.Linq;
 
 namespace XHTMLr.Tests {
@@ -21,6 +21,14 @@ namespace XHTMLr.Tests {
 					.FirstOrDefault(x => (string)x.Attribute("id") == "taleoContent")
 					.Should().Not.Be.Null();
 			}
+		}
+
+		[TestMethod]
+		public void TestForm() {
+			var html = "<form method=\"post\"><input type=text name=tested /></form>";
+			var forms = Form.GetForms(html).First();
+			var keys = forms.Keys.ToArray();
+			keys[0].Should().Equal("tested");
 		}
 
 		[TestMethod]
