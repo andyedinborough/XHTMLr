@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 
@@ -86,8 +87,21 @@ namespace XHTMLr {
 			return _form.Serialize();
 		}
 
+		public Tuple<string, byte[]> SerializeData(System.Text.Encoding encoding = null) {
+			return _form.SerializeData(encoding);
+		}
+
 		public static explicit operator XElement(Form form) {
 			return form._form;
+		}
+
+		public override string ToString() {
+			return ToString(null);
+		}
+
+		public string ToString(System.Text.Encoding encoding) {
+			encoding = encoding ?? System.Text.Encoding.Default;
+			return encoding.GetString(_form.SerializeData(encoding).Item2);
 		}
 	}
 }

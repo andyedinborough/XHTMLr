@@ -9,8 +9,8 @@ namespace XHTMLr {
 			return string.Equals(a ?? string.Empty, b ?? string.Empty, StringComparison.OrdinalIgnoreCase);
 		}
 
-		static internal void WriteLine(this System.IO.Stream stream, string line = null) {
-			stream.Write(line + Environment.NewLine);
+		static internal void WriteLine(this System.IO.Stream stream, string line = null, System.Text.Encoding encoding = null) {
+			stream.Write(line + Environment.NewLine, encoding);
 		}
 		static internal void Write(this System.IO.Stream stream, byte[] data) {
 			stream.Write(data, 0, data.Length);
@@ -19,7 +19,8 @@ namespace XHTMLr {
 			var data = (encoding ?? System.Text.Encoding.Default).GetBytes(line ?? string.Empty);
 			stream.Write(data, 0, data.Length);
 		}
-		public static Tuple<string, byte[]> SerializeData(this XElement form) {
+
+		public static Tuple<string, byte[]> SerializeData(this XElement form, System.Text.Encoding encoding = null) {
 			var values = form.Serialize();
 			var action = (string)form.Attribute("action");
 			var multipart = "multipart/form-data".Is((string)form.Attribute("enctype"));
@@ -30,24 +31,26 @@ namespace XHTMLr {
 			using (var mem = new System.IO.MemoryStream()) {
 				if (multipart) {
 					foreach (var key in values) {
-						mem.WriteLine("--" + boundary);
-						mem.WriteLine("Content-Disposition: form-data; name=\"" + key.Name + "\"");
+						mem.WriteLine("--" + boundary, encoding);
+						mem.WriteLine("Content-Disposition: form-data; name=\"" + key.Name + "\"", encoding);
 						mem.WriteLine();
 						var value = key.Value;
-						if (value is FilePointer && System.IO.File.Exists(((FilePointer)value).File)) {
-							value = System.IO.File.ReadAllBytes(((FilePointer)value).File);
-						}
-						if (value is byte[]) {
+						if (value is FilePointer) {
+							var ptr = (FilePointer)value;
+							if (!ptr.File.IsNullOrEmpty()) {
+								value = System.IO.File.ReadAllBytes(ptr.File);
+							}
+						} else if (value is byte[]) {
 							mem.Write((byte[])value);
 						} else {
-							mem.WriteLine(Convert.ToString(value));
+							mem.WriteLine(Convert.ToString(value), encoding);
 						}
 					}
-					mem.WriteLine("--" + boundary + "--");
+					mem.WriteLine("--" + boundary + "--", encoding);
 				} else {
 					var sep = string.Empty;
 					foreach (var key in values) {
-						mem.Write(sep + Uri.EscapeDataString(key.Name) + "=" + Uri.EscapeDataString(Convert.ToString(key.Value)));
+						mem.Write(sep + Uri.EscapeDataString(key.Name) + "=" + Uri.EscapeDataString(Convert.ToString(key.Value)), encoding);
 						sep = "&";
 					}
 				}
