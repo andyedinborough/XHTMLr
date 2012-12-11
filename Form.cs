@@ -69,8 +69,11 @@ namespace XHTMLr {
 		public IEnumerable<string> Keys {
 			get {
 				return _form.Descendants()
-					.SelectMany(x => x.Attributes("name"))
-					.Select(x => x.Value).Distinct();
+					.Select(x => x.Attribute("name"))
+					.Where(x => x != null)
+					.Select(x => x.Value)
+					.Where(x => !string.IsNullOrEmpty(x))
+					.Distinct();
 			}
 		}
 
