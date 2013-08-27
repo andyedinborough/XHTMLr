@@ -54,7 +54,8 @@ namespace XHTMLr {
 						},
 				};
 
-		private static string[] _SelfClosingTags = new[] { "area", "base", "basefront", "input", "meta", "img", "link", "br", "hr", "wbr" };
+		private static HashSet<string> _DoNotForciblyClose = new HashSet<string> { "form" };
+		private static HashSet<string> _SelfClosingTags = new HashSet<string> { "area", "base", "basefront", "input", "meta", "img", "link", "br", "hr", "wbr" };
 
 		private static Dictionary<string, int> _Entities = typeof(Entities).GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)
 				.ToDictionary(x => x.Name, x => ((string)x.GetValue(null)).Trim('&', '#', ';').ToInt());
@@ -274,6 +275,9 @@ namespace XHTMLr {
 		private void Close(int openerIndex) {
 			if (openerIndex > -1) {
 				for (int i = OpenTags.Count - 1; i >= openerIndex; i--) {
+					if (_DoNotForciblyClose.Contains(OpenTags[i])) {
+						return;
+					}
 					Out("</" + OpenTags[i] + ">");
 					OpenTags.RemoveAt(i);
 				}
