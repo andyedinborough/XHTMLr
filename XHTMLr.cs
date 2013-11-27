@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Xml.Linq;
 
 namespace XHTMLr {
 	public sealed class XHTML {
@@ -112,8 +113,8 @@ namespace XHTMLr {
 				html = WordCleanup.CleanWordHtml(html);
 			}
 
-			using (Input = new StringReader(html))
-			using (Output = new StringWriter()) {
+			XDoc = new XDocument();
+			using (Input = new StringReader(html)) {
 				EntitiesOnly = options.Contains(Options.EntitiesOnly);
 				EnforceHtmlElement = options.Contains(Options.EnforceHtmlElement);
 				RemoveExtraWhitespace = options.Contains(Options.RemoveExtraWhitespace);
@@ -129,14 +130,7 @@ namespace XHTMLr {
 
 				if (NumTagsWritten == 0 && !EntitiesOnly) return string.Empty;
 
-				if (OpenTags.Count > 0) {
-					OpenTags.Reverse();
-					foreach (var tag in OpenTags) {
-						Output.Write("</" + tag + ">");
-					}
-				}
-
-				html = Output.ToString().Trim();
+				html = XDoc.ToString().Trim();
 
 				if (options.Contains(Options.Pretty)) {
 					var xml = System.Xml.Linq.XDocument.Parse(html);
@@ -156,7 +150,8 @@ namespace XHTMLr {
 
 		#region Instance Members
 		public StringReader Input { get; set; }
-		public StringWriter Output { get; set; }
+		public XDocument XDoc { get; set; }
+		public XElement Element { get; set; }
 		public List<string> OpenTags { get; private set; }
 		public bool EntitiesOnly { get; set; }
 		public bool EnforceHtmlElement { get; set; }
@@ -185,7 +180,7 @@ namespace XHTMLr {
 					}
 				}
 
-				Out(Encode(block.Text));
+				Element.Add(new XText(block.Text));
 			}
 
 			if (block.Last == '&') {
@@ -193,7 +188,7 @@ namespace XHTMLr {
 
 			} else if (block.Last == '<') {
 				if (EntitiesOnly) {
-					Out(_LT);
+					Element.Add(new XText("<"));
 					Next = ReadText;
 				} else {
 					Next = ReadTag;
@@ -204,24 +199,6 @@ namespace XHTMLr {
 		private string Encode(string input) {
 			return input.Replace(">", _GT);
 		}
-
-		//private string Encode(string input, bool encodeBrackets = true) {
-		//    using (var str = new System.IO.StringWriter()) {
-		//        foreach (var c in input) str.Write(Encode(c, encodeBrackets));
-		//        return str.ToString();
-		//    }
-		//}
-
-		//private string Encode(char c, bool encodeBrackets = true) {
-		//    int i = Convert.ToInt32(c);
-		//    if (i > 126) {
-		//        return "&#" + i + ";";
-		//    } else if (encodeBrackets && c == '>') {
-		//        return "&" + _Entities["gt"] + ";";
-		//    } else if (i != 9 && i != 10 && i != 13 && i < 32) {
-		//        return string.Empty;
-		//    } else return c.ToString();
-		//}
 
 		private void ReadEntity() {
 			var block = Read(Modes.entity);
@@ -274,34 +251,18 @@ namespace XHTMLr {
 		private void Close(int openerIndex) {
 			if (openerIndex > -1) {
 				for (int i = OpenTags.Count - 1; i >= openerIndex; i--) {
-					Out("</" + OpenTags[i] + ">");
+					Element = Element.Parent;
 					OpenTags.RemoveAt(i);
 				}
 			}
 		}
 
-		//private static bool InvalidName(string name) {
-		//    return InvalidName(name, null);
-		//}
 		private static bool IsLetter(int i) {
 			return i.Between(65, 90) || i.Between(97, 122);
 		}
 		private static bool IsDigit(int i) {
 			return i.Between(48, 57);
 		}
-		//private static bool InvalidName(string name, params char[] alsoValid) {
-		//    if (name == "?xml") return false;
-		//    if (name.Length == 0) return true;
-
-		//    for (int i = 0; i < name.Length; i++) {
-		//        char c = name[i];
-		//        if (i == 0) {
-		//            if (!IsLetter(c)) return true;
-		//        } else if (!IsLetterOrDigit(c) && (alsoValid == null || !alsoValid.Contains(c)))
-		//            return true;
-		//    }
-		//    return false;
-		//}
 
 		private void ReadTag() {
 			var block = ReadTagName();
@@ -317,18 +278,15 @@ namespace XHTMLr {
 				if (block.Text.Left(3) == "!--") {
 					if (block.Last == '>' && block.Text.EndsWith("--")) {
 						if (!RemoveComments) {
-							Out("<!--");
 							block.Text = block.Text.Substring(3);
 							if (block.Text.EndsWith("--")) block.Text = block.Text.Substring(0, block.Text.Length - 2);
-							Out(block.Text.TrimEnd('-').Replace("--", "  "));
-							Out("-->");
+							Element.Add(new XComment(block.Text.TrimEnd('-').Replace("--", "  ")));
 						}
+
 					} else {
 						var comment = ReadUntil("-->");
 						if (!RemoveComments && comment.Length >= 3) {
-							Out("<!--");
-							Out((block.Text.Substring(3) + block.Last + comment.Substring(0, comment.Length - 3)).TrimEnd('-').Replace("--", "  "));
-							Out("-->");
+							Element.Add(new XComment((block.Text.Substring(3) + block.Last + comment.Substring(0, comment.Length - 3)).TrimEnd('-').Replace("--", "  ")));
 						}
 					}
 				} else {
@@ -340,13 +298,6 @@ namespace XHTMLr {
 
 			} else if (tagName.Length == 0 && block.Last == '?') {
 				string text = ReadUntil("?>");
-				//if (enforceHtmlElement && tagName.StartsWith("?xml"))
-				//    enforceHtmlElement = false;
-				////if (openTags.Count == 0 && !hasXmlDeclaration) {
-				////    Out('<' + tagName + ' ' + text.TrimStart());
-				////    enforceHtmlElement = false;
-				////    hasXmlDeclaration = true;
-				////}
 				Next = ReadText;
 				return;
 
@@ -389,29 +340,10 @@ namespace XHTMLr {
 						}
 					}
 
-					//if (tagName == "li") {
-					//    AutoClose(new[] { "ul", "ol" }, new[] { "li" });
-					//} else if (tagName == "tr") {
-					//    AutoClose(new[] { "table", "thead", "tbody" }, new[] { "td", "th", "tr" });
-					//} else if (tagName == "td" || tagName == "th") {
-					//    AutoClose(new[] { "table", "thead", "tbody" }, new[] { "td", "th" });
-					//} else if (tagName == "p" || tagName == "blockquote" || tagName == "ul" || tagName == "ol") {
-					//    AutoClose(new[] { "div", "table", "body" }, new[] { "p", "blockquote", "ul", "ol" });
-					//} else if (tagName == "frame") {
-					//    AutoClose(new[] { "frameset" }, new[] { "frame" });
-					//} else if (tagName == "frameset") {
-					//    AutoClose(new[] { "frame" }, new[] { "frame" });
-					//}
-
-
-
-					//if (!EnforceHtmlElement && OpenTags.Count == 0 && _CommonTags.Contains(tagName))
-					//    EnforceHtmlElement = true;
-
 					if (EnforceHtmlElement) {
 						if (tagName != "html" && OpenTags.Count == 0) {
 							OpenTags.Add("html");
-							Out("<html>");
+							Element = new XElement("html");
 
 						} else if (tagName == "html" && OpenTags.Count > 0) {
 							enabled = false;
@@ -420,7 +352,9 @@ namespace XHTMLr {
 						}
 
 						if (OpenTags.Count > 0 && tagName != "body" && tagName != "head" && !OpenTags.Contains("head") && !OpenTags.Contains("body")) {
-							Out("<body>");
+							var body = new XElement("body");
+							Element.Add(body);
+							Element = body;
 							OpenTags.Add("body");
 						}
 					}
@@ -429,7 +363,9 @@ namespace XHTMLr {
 						if (!selfClosing && tagName != "script" && tagName != "style")
 							OpenTags.Add(tagName);
 
-						Out("<" + tagName);
+						var elm = new XElement(tagName);
+						Element.Add(elm);
+						Element = elm;
 						NumTagsWritten++;
 					}
 
@@ -460,19 +396,19 @@ namespace XHTMLr {
 							if (c == '\'') {
 								Input.Read();
 								block = Read(Modes.attrValueTick);
-								attrValue = '\'' + block.Text.Trim() + '\'';
+								attrValue = block.Text.Trim();
 
 							} else if (c == '"') {
 								Input.Read();
 								block = Read(Modes.attrValueQuote);
-								attrValue = '"' + block.Text.Trim() + '"';
+								attrValue = block.Text.Trim();
 
 							} else {
 								block = Read(Modes.attrValue);
-								attrValue = '"' + block.Text + '"';
+								attrValue = block.Text;
 							}
 						} else {
-							attrValue = '"' + attrName + '"';
+							attrValue = attrName;
 						}
 
 						if (enabled && !(RemoveXmlns && attrName == "xmlns")) {
@@ -485,10 +421,9 @@ namespace XHTMLr {
 					}
 
 					foreach (var attr in attrs)
-						Out(' ' + attr.Key + '=' + attr.Value);
+						Element.Add(new XAttribute(attr.Key, attr.Value));
 
-					if (enabled && selfClosing) Out('/');
-					if (enabled) Out('>');
+					Element = Element.Parent;
 
 					if (tagName == "script" || tagName == "style") {
 						ReadWhileWhitespace();
@@ -516,8 +451,11 @@ namespace XHTMLr {
 							}
 						}
 
-						if (enabled)
-							Out(text + "</" + tagName + ">");
+						if (enabled) {
+							if (!text.IsNullOrEmpty())
+								Element.Add(new XText(text));
+							Element = Element.Parent;
+						}
 					}
 
 					Next = ReadText;
@@ -525,6 +463,7 @@ namespace XHTMLr {
 			}
 		}
 
+		/*
 		private void Out(string value) {
 			if (OpenTags.Count == 0 && !EntitiesOnly) value = value.Trim();
 			if (value.Length == 0) return;
@@ -538,6 +477,7 @@ namespace XHTMLr {
 			foreach (char c in value)
 				Out(c);
 		}
+		*/
 
 		//http://seattlesoftware.wordpress.com/2008/09/11/hexadecimal-value-0-is-an-invalid-character/
 		private static bool IsLegalXmlChar(int c) {
@@ -545,14 +485,6 @@ namespace XHTMLr {
 					|| (c >= 0x20 && c <= 0xD7FF)
 					|| (c >= 0xE000 && c <= 0xFFFD)
 					|| (c >= 0x10000 && c <= 0x10FFFF);
-		}
-
-		private void Out(char c) {
-			if (!IsLegalXmlChar(c)) return;
-			if (c > 126)
-				Output.Write("&#" + (int)c + ";");
-			else
-				Output.Write(c);
 		}
 
 		private char Read() {
