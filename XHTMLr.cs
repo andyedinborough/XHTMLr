@@ -57,66 +57,51 @@ namespace XHTMLr {
 
 		private static string[] _SelfClosingTags = new[] { "area", "base", "basefront", "input", "meta", "img", "link", "br", "hr", "wbr" };
 
-		private static Dictionary<string, int> _Entities = typeof(Entities).GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)
-				.ToDictionary(x => x.Name, x => ((string)x.GetValue(null)).Trim('&', '#', ';').ToInt());
-		private static Dictionary<string, int> _EntitiesLower = _Entities.Keys.OrderBy(x => x) // prioritize entities in lowercase so &DAGGER; resolves to &dagger; not &Dagger;
-				.Distinct(StringComparer.OrdinalIgnoreCase).ToDictionary(x => x.ToLower(), y => _Entities[y]);
-
-		private static readonly string _Amp = Entity("amp");
-		private static readonly string _GT = Entity("gt");
-		private static readonly string _LT = Entity("lt");
-
-		private static string Entity(string name) {
-			int value = 0;
-
-			if (name.Length > 0) {
-				if (!_Entities.TryGetValue(name, out value)) {
-					if (!_EntitiesLower.TryGetValue(name.ToLower(), out value)) {
-						if (name[0] == '#') {
-							if (name.Length > 1 && name[1] == 'x') {
-								value = name.Substring(2).HexToInt();
-							} else {
-								value = name.Substring(1).ToInt();
-							}
-						}
-
-					}
-				}
-			}
-
-			if (value == 153) value = 8482; //convert html valid TM to an xml valid one
-
-			if (IsLegalXmlChar(value)) //System.Xml.Linq.XDocument will puke on invalid XML characters even if they're encoded
-				return "&#" + value + ";";
-			else return string.Empty;
-		}
-
 		private enum Modes {
 			text, entity, attrValue, attrValueTick, attrValueQuote
 		}
 
 		[Flags()]
 		public enum Options {
-			None = 0, EntitiesOnly = 1, EnforceHtmlElement = 2,
+			None = 0, EntitiesOnly = 1,
 			RemoveExtraWhitespace = 4, RemoveXMLNS = 8, RemoveComments = 16, Pretty = 32, CleanUpWordHTML = 64,
 			KeepTagCase = 128,
-			Default = EnforceHtmlElement | RemoveXMLNS
+			Default = RemoveXMLNS
 		}
 
 		public static string ToXml(string html, Options options = Options.Default) {
 			var parser = new XHTML();
-			return parser.Process(html, options);
+			parser.Process(html, options);
+			html = parser.Document.ToString().Trim();
+
+			if (options.Contains(Options.Pretty)) {
+				var xml = System.Xml.Linq.XDocument.Parse(html);
+				using (var str = new System.IO.StringWriter())
+				using (var xmlw = new System.Xml.XmlTextWriter(str)) {
+					xmlw.Formatting = System.Xml.Formatting.Indented;
+					xml.WriteTo(xmlw);
+					html = str.ToString();
+				}
+
+				html = html.Substring(html.IndexOf("?>") + 2).Trim();
+			}
+
+			return html;
 		}
 
-		private string Process(string html, Options options = Options.Default) {
+		public static XDocument Parse(string html, Options options = Options.Default) {
+			var parser = new XHTML();
+			parser.Process(html, options);
+			return parser.Document;
+		}
+
+		private void Process(string html, Options options = Options.Default) {
 			if (options.Contains(Options.CleanUpWordHTML)) {
 				html = WordCleanup.CleanWordHtml(html);
 			}
 
-			XDoc = new XDocument();
 			using (Input = new StringReader(html)) {
 				EntitiesOnly = options.Contains(Options.EntitiesOnly);
-				EnforceHtmlElement = options.Contains(Options.EnforceHtmlElement);
 				RemoveExtraWhitespace = options.Contains(Options.RemoveExtraWhitespace);
 				RemoveComments = options.Contains(Options.RemoveComments);
 				RemoveXmlns = options.Contains(Options.RemoveXMLNS);
@@ -127,31 +112,22 @@ namespace XHTMLr {
 					Next = null;
 					next();
 				}
-
-				if (NumTagsWritten == 0 && !EntitiesOnly) return string.Empty;
-
-				html = XDoc.ToString().Trim();
-
-				if (options.Contains(Options.Pretty)) {
-					var xml = System.Xml.Linq.XDocument.Parse(html);
-					using (var str = new System.IO.StringWriter())
-					using (var xmlw = new System.Xml.XmlTextWriter(str)) {
-						xmlw.Formatting = System.Xml.Formatting.Indented;
-						xml.WriteTo(xmlw);
-						html = str.ToString();
-					}
-
-					html = html.Substring(html.IndexOf("?>") + 2).Trim();
-				}
-
-				return html;
 			}
 		}
 
 		#region Instance Members
 		public StringReader Input { get; set; }
-		public XDocument XDoc { get; set; }
-		public XElement Element { get; set; }
+		public XDocument Document { get; set; }
+
+		private XElement _Element;
+
+		public XElement Element {
+			get { return _Element; }
+			set {
+				_Element = value;
+			}
+		}
+
 		public List<string> OpenTags { get; private set; }
 		public bool EntitiesOnly { get; set; }
 		public bool EnforceHtmlElement { get; set; }
@@ -180,7 +156,7 @@ namespace XHTMLr {
 					}
 				}
 
-				Element.Add(new XText(block.Text));
+				AppendText(block.Text);
 			}
 
 			if (block.Last == '&') {
@@ -196,34 +172,30 @@ namespace XHTMLr {
 			}
 		}
 
-		private string Encode(string input) {
-			return input.Replace(">", _GT);
-		}
-
 		private void ReadEntity() {
 			var block = Read(Modes.entity);
 
 			if (block.Last == ';' || _Whitespace.Contains(block.Last)) {
-				Out(Entity(block.Text));
-				if (block.Last != ';') Out(block.Last);
+				AppendText(Entities.DecodeEntity(block.Text));
+				if (block.Last != ';') AppendText(block.Last.ToString());
 				Next = ReadText;
 
 			} else {
-				Out(_Amp + Encode(block.Text));
+				AppendText("&" + block.Text);
 
 				if (!EntitiesOnly && block.Last == '<') {
 					Next = ReadTag;
 				} else {
 					if (block.Last == '<') {
-						Out(_LT + Encode(block.Text));
+						AppendText("<" + block.Text);
 
 					} else if (block.Last == '>') {
-						Out(_GT + Encode(block.Text));
+						AppendText(">" + block.Text);
 
 					} else if (block.Last == '&') {
 						Next = ReadEntity;
 						return;
-					} else Out(block.Last);
+					} else AppendText(block.Last.ToString());
 					Next = ReadText;
 				}
 			}
@@ -303,16 +275,15 @@ namespace XHTMLr {
 
 			} else if (tagName.Length == 0 || block.Last == '<' || !IsLetter(tagName[0]) || tagName.Contains(':')) {
 				if (OpenTags.Count > 0) {
-					Out(_LT);
-					Out(ToXml(block.Text, Options.EntitiesOnly));
+					AppendText("<" + block.Text);
 
 					if (block.Last == '<') {
 						Next = ReadTag;
 					} else if (block.Last == '&') {
 						Next = ReadEntity;
 					} else {
-						if (block.Last == '>') Out(_GT);
-						else Out(block.Last);
+						if (block.Last == '>') AppendText(">");
+						else AppendText(block.Last.ToString());
 						Next = ReadText;
 					}
 				} else Next = ReadText;
@@ -342,8 +313,7 @@ namespace XHTMLr {
 
 					if (EnforceHtmlElement) {
 						if (tagName != "html" && OpenTags.Count == 0) {
-							OpenTags.Add("html");
-							Element = new XElement("html");
+							AppendElement("html");
 
 						} else if (tagName == "html" && OpenTags.Count > 0) {
 							enabled = false;
@@ -352,10 +322,7 @@ namespace XHTMLr {
 						}
 
 						if (OpenTags.Count > 0 && tagName != "body" && tagName != "head" && !OpenTags.Contains("head") && !OpenTags.Contains("body")) {
-							var body = new XElement("body");
-							Element.Add(body);
-							Element = body;
-							OpenTags.Add("body");
+							AppendElement("body");
 						}
 					}
 
@@ -363,10 +330,7 @@ namespace XHTMLr {
 						if (!selfClosing && tagName != "script" && tagName != "style")
 							OpenTags.Add(tagName);
 
-						var elm = new XElement(tagName);
-						Element.Add(elm);
-						Element = elm;
-						NumTagsWritten++;
+						AppendElement(tagName);
 					}
 
 					while (block.Last != '>') {
@@ -453,7 +417,7 @@ namespace XHTMLr {
 
 						if (enabled) {
 							if (!text.IsNullOrEmpty())
-								Element.Add(new XText(text));
+								AppendText(text);
 							Element = Element.Parent;
 						}
 					}
@@ -461,6 +425,31 @@ namespace XHTMLr {
 					Next = ReadText;
 				}
 			}
+		}
+
+		private void AppendElement(string name, bool changeContext = true) {
+			var elm = new XElement(name);
+			NumTagsWritten++;
+			OpenTags.Add(name);
+			if (Element == null) {
+				if (Document == null) Document = new XDocument(elm);
+				else Document.Root.Add(elm);
+			} else Element.Add(elm);
+
+			if (changeContext) {
+				Element = elm;
+			}
+		}
+
+		private void AppendText(string value) {
+			if (Element == null) {
+				AppendElement("html");
+				AppendElement("body");
+			}
+			value = Entities.Decode(value);
+			XText txt = Element.LastNode as XText;
+			if (txt != null) txt.Value += value;
+			else Element.Add(new XText(value));
 		}
 
 		/*
