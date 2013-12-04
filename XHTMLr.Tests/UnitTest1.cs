@@ -11,6 +11,22 @@ namespace XHTMLr.Tests {
 		public TestContext TestContext { get; set; }
 
 		[TestMethod]
+		public void TestPage() {
+			using (var web = new System.Net.WebClient()) {
+				var html = web.DownloadString("http://pre-cms.tracky.com/_title_");
+
+				var xdoc = XHTML.Parse(html);
+				var form =
+				xdoc.Descendants("form")
+					.LastOrDefault();
+				form
+					.Elements()
+					.Count()
+					.Should().Equal(2);
+			}
+		}
+
+		[TestMethod]
 		public void TestForm() {
 			var html = "<form method=\"post\"><input type=text name=tested /></form>";
 			var forms = Form.GetForms(html).First();
