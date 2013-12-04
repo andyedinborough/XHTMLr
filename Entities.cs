@@ -12,6 +12,7 @@ namespace XHTMLr {
 				.Distinct(StringComparer.OrdinalIgnoreCase).ToDictionary(x => x.ToLower(), y => _Entities[y]);
 
 		public static string Decode(string text, Encoding encoding = null) {
+			text = text.Replace("\0", string.Empty);
 			return Regex.Replace(text, @"&(#?[a-zA-Z0-9]+);", m => DecodeEntity(m.Groups[1].Value, encoding) ?? m.Value);
 		}
 

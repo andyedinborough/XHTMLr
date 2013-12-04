@@ -28,7 +28,7 @@ namespace XHTMLr {
 		public XElement Element { get { return _form; } }
 
 		public static Form[] GetForms(string html) {
-			return XDocument.Parse(XHTML.ToXml(html)).GetForms();
+			return XHTML.Parse(html).GetForms();
 		}
 
 		public static Form[] GetForms(XDocument xdoc) {

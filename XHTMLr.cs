@@ -101,7 +101,6 @@ namespace XHTMLr {
 			}
 
 			using (Input = new StringReader(html)) {
-				EntitiesOnly = options.Contains(Options.EntitiesOnly);
 				RemoveExtraWhitespace = options.Contains(Options.RemoveExtraWhitespace);
 				RemoveComments = options.Contains(Options.RemoveComments);
 				RemoveXmlns = options.Contains(Options.RemoveXMLNS);
@@ -129,7 +128,6 @@ namespace XHTMLr {
 		}
 
 		public List<string> OpenTags { get; private set; }
-		public bool EntitiesOnly { get; set; }
 		public bool EnforceHtmlElement { get; set; }
 		public bool RemoveExtraWhitespace { get; set; }
 		public bool RemoveComments { get; set; }
@@ -163,12 +161,7 @@ namespace XHTMLr {
 				Next = ReadEntity;
 
 			} else if (block.Last == '<') {
-				if (EntitiesOnly) {
-					Element.Add(new XText("<"));
-					Next = ReadText;
-				} else {
-					Next = ReadTag;
-				}
+				Next = ReadTag;
 			}
 		}
 
@@ -183,7 +176,7 @@ namespace XHTMLr {
 			} else {
 				AppendText("&" + block.Text);
 
-				if (!EntitiesOnly && block.Last == '<') {
+				if (block.Last == '<') {
 					Next = ReadTag;
 				} else {
 					if (block.Last == '<') {
@@ -223,7 +216,7 @@ namespace XHTMLr {
 		private void Close(int openerIndex) {
 			if (openerIndex > -1) {
 				for (int i = OpenTags.Count - 1; i >= openerIndex; i--) {
-					Element = Element.Parent;
+					Element = Element.Parent ?? Document.Root;
 					OpenTags.RemoveAt(i);
 				}
 			}
@@ -258,7 +251,7 @@ namespace XHTMLr {
 					} else {
 						var comment = ReadUntil("-->");
 						if (!RemoveComments && comment.Length >= 3) {
-							Element.Add(new XComment((block.Text.Substring(3) + block.Last + comment.Substring(0, comment.Length - 3)).TrimEnd('-').Replace("--", "  ")));
+							Element.Add(new XComment((block.Text.Substring(3) + block.Last + comment.Substring(0, comment.EndsWith("-->") ? (comment.Length - 3) : 0)).TrimEnd('-').Replace("--", "  ")));
 						}
 					}
 				} else {
@@ -327,9 +320,6 @@ namespace XHTMLr {
 					}
 
 					if (enabled) {
-						if (!selfClosing && tagName != "script" && tagName != "style")
-							OpenTags.Add(tagName);
-
 						AppendElement(tagName);
 					}
 
@@ -341,8 +331,8 @@ namespace XHTMLr {
 
 						attrName = stripPrefix(attrName);
 						if (attrName.Length == 0
-								|| !IsLetter(attrName[0])
-								|| attrName.Contains(':')) continue;
+										|| !IsLetter(attrName[0])
+										|| attrName.Contains(':')) continue;
 
 						ReadWhileWhitespace();
 
@@ -376,7 +366,7 @@ namespace XHTMLr {
 						}
 
 						if (enabled && !(RemoveXmlns && attrName == "xmlns")) {
-							attrValue = ToXml(attrValue, Options.EntitiesOnly);
+							attrValue = Entities.Decode(attrValue);
 
 							if (attrs.ContainsKey(attrName))
 								attrs[attrName] = attrValue;
@@ -387,7 +377,10 @@ namespace XHTMLr {
 					foreach (var attr in attrs)
 						Element.Add(new XAttribute(attr.Key, attr.Value));
 
-					Element = Element.Parent;
+					if (_SelfClosingTags.Contains(tagName)) {
+						OpenTags.Remove(tagName);
+						Element = Element.Parent ?? Document.Root;
+					}
 
 					if (tagName == "script" || tagName == "style") {
 						ReadWhileWhitespace();
@@ -403,7 +396,7 @@ namespace XHTMLr {
 								text = "/*<![CDATA[*/" + text;
 							} else {
 								var part = text.Substring(0, i);
-								text = ToXml(part, Options.EntitiesOnly) + text.Substring(i);
+								text = Entities.Decode(part) + text.Substring(i);
 							}
 
 							i = text.IndexOf("]]>");
@@ -411,14 +404,15 @@ namespace XHTMLr {
 								text = text + "/*]]>*/";
 							} else {
 								var part = text.Substring(i + 3);
-								text = text.Substring(0, i + 3) + ToXml(part, Options.EntitiesOnly);
+								text = text.Substring(0, i + 3) + Entities.Decode(part);
 							}
 						}
 
 						if (enabled) {
 							if (!text.IsNullOrEmpty())
 								AppendText(text);
-							Element = Element.Parent;
+							Element = Element.Parent ?? Document.Root;
+							OpenTags.Remove(tagName);
 						}
 					}
 
@@ -427,22 +421,38 @@ namespace XHTMLr {
 			}
 		}
 
+		private static HashSet<string> _specialElements = new HashSet<string> { "html", "body", "head" };
+
 		private void AppendElement(string name, bool changeContext = true) {
 			var elm = new XElement(name);
+
 			NumTagsWritten++;
 			OpenTags.Add(name);
 			if (Element == null) {
 				if (Document == null) Document = new XDocument(elm);
 				else Document.Root.Add(elm);
-			} else Element.Add(elm);
-
+			} else {
+				if (_specialElements.Contains(name)) {
+					elm = Document.Root.Descendants(name).FirstOrDefault() ?? elm;
+					if (elm.Parent == null) {
+						Element.Add(elm);
+					}
+				} else {
+					Element.Add(elm);
+				}
+			}
 			if (changeContext) {
 				Element = elm;
 			}
 		}
 
 		private void AppendText(string value) {
+			if (value.IsNullOrEmpty()) return;
+
 			if (Element == null) {
+				if (string.IsNullOrWhiteSpace(value)) {
+					return;
+				}
 				AppendElement("html");
 				AppendElement("body");
 			}
@@ -454,26 +464,26 @@ namespace XHTMLr {
 
 		/*
 		private void Out(string value) {
-			if (OpenTags.Count == 0 && !EntitiesOnly) value = value.Trim();
-			if (value.Length == 0) return;
+				if (OpenTags.Count == 0 && !EntitiesOnly) value = value.Trim();
+				if (value.Length == 0) return;
 
-			if (!EntitiesOnly && OpenTags.Count == 0 && EnforceHtmlElement) {
-				OpenTags.Add("html");
-				OpenTags.Add("body");
-				Out("<html><body>");
-			}
+				if (!EntitiesOnly && OpenTags.Count == 0 && EnforceHtmlElement) {
+						OpenTags.Add("html");
+						OpenTags.Add("body");
+						Out("<html><body>");
+				}
 
-			foreach (char c in value)
-				Out(c);
+				foreach (char c in value)
+						Out(c);
 		}
 		*/
 
 		//http://seattlesoftware.wordpress.com/2008/09/11/hexadecimal-value-0-is-an-invalid-character/
 		private static bool IsLegalXmlChar(int c) {
 			return c == 0x9 || c == 0xA || c == 0xD
-					|| (c >= 0x20 && c <= 0xD7FF)
-					|| (c >= 0xE000 && c <= 0xFFFD)
-					|| (c >= 0x10000 && c <= 0x10FFFF);
+							|| (c >= 0x20 && c <= 0xD7FF)
+							|| (c >= 0xE000 && c <= 0xFFFD)
+							|| (c >= 0x10000 && c <= 0x10FFFF);
 		}
 
 		private char Read() {
