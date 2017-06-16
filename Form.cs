@@ -3,71 +3,61 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 
-namespace XHTMLr {
-	public class FilePointer {
-		public string File { get; set; }
-	}
+namespace XHTMLr
+{
+	public class Form
+	{
+		#region Fields
 
-	public class FormData : List<FormData.Pair> {
-		public class Pair {
-			public string Name { get; set; }
-			public object Value { get; set; }
-		}
-		public void Add(string name, object value) {
-			Add(new Pair { Name = name, Value = value });
-		}
-	}
+		private XElement _form;
 
-	public class Form {
-		XElement _form;
-		public Form() : this(new XElement("form")) { }
-		public Form(XElement form) {
+		#endregion
+
+		#region Constructors
+
+		public Form() : this(new XElement("form"))
+		{
+		}
+
+		public Form(XElement form)
+		{
 			_form = form;
 		}
 
-		public XElement Element { get { return _form; } }
+		#endregion
 
-		public static Form[] GetForms(string html) {
-			return XDocument.Parse(XHTML.ToXml(html)).GetForms();
-		}
+		#region Properties
 
-		public static Form[] GetForms(XDocument xdoc) {
-			return xdoc.GetForms();
-		}
-
-		public void Remove(string name) {
-			_form.GetElementsByName(name).Remove();
-		}
-
-		public string Action {
-			get {
+		public string Action
+		{
+			get
+			{
 				return (string)_form.Attribute("action") ?? string.Empty;
 			}
-			set {
+			set
+			{
 				_form.SetAttributeValue("action", value);
 			}
 		}
 
-		public string Method {
-			get {
-				return ((string)_form.Attribute("method")).NotEmpty("get");
-			}
-			set {
-				_form.SetAttributeValue("method", value);
-			}
-		}
+		public XElement Element { get { return _form; } }
 
-		public string EncType {
-			get {
+		public string EncType
+		{
+			get
+			{
 				return ((string)_form.Attribute("enctype")).NotEmpty("application/x-www-form-urlencoded");
 			}
-			set {
+			set
+			{
 				_form.SetAttributeValue("enctype", value);
 			}
 		}
 
-		public IEnumerable<string> Keys {
-			get {
+		public IEnumerable<string> Keys
+		{
+			get
+			{
 				return _form.Descendants()
 					.Select(x => x.Attribute("name"))
 					.Where(x => x != null)
@@ -77,34 +67,79 @@ namespace XHTMLr {
 			}
 		}
 
-		public string this[string name] {
-			get {
+		public string Method
+		{
+			get
+			{
+				return ((string)_form.Attribute("method")).NotEmpty("get");
+			}
+			set
+			{
+				_form.SetAttributeValue("method", value);
+			}
+		}
+
+		#endregion
+
+		#region Indexers
+
+		public string this[string name]
+		{
+			get
+			{
 				return _form.Field(name);
 			}
-			set {
+			set
+			{
 				_form.Field(name, value);
 			}
 		}
 
-		public FormData Serialize() {
-			return _form.Serialize();
-		}
+		#endregion
 
-		public Tuple<string, byte[]> SerializeData(System.Text.Encoding encoding = null) {
-			return _form.SerializeData(encoding);
-		}
+		#region Methods
 
-		public static explicit operator XElement(Form form) {
+		public static explicit operator XElement(Form form)
+		{
 			return form._form;
 		}
 
-		public override string ToString() {
+		public static Form[] GetForms(string html)
+		{
+			return XDocument.Parse(XHTML.ToXml(html)).GetForms();
+		}
+
+		public static Form[] GetForms(XDocument xdoc)
+		{
+			return xdoc.GetForms();
+		}
+
+		public void Remove(string name)
+		{
+			_form.GetElementsByName(name).Remove();
+		}
+
+		public FormData Serialize()
+		{
+			return _form.Serialize();
+		}
+
+		public Tuple<string, byte[]> SerializeData(System.Text.Encoding encoding = null)
+		{
+			return _form.SerializeData(encoding);
+		}
+
+		public override string ToString()
+		{
 			return ToString(null);
 		}
 
-		public string ToString(System.Text.Encoding encoding) {
+		public string ToString(System.Text.Encoding encoding)
+		{
 			encoding = encoding ?? System.Text.Encoding.Default;
 			return encoding.GetString(_form.SerializeData(encoding).Item2);
 		}
+
+		#endregion
 	}
 }

@@ -44,7 +44,9 @@
   <ItemGroup>
     <Compile Include="Entities.cs" />
     <Compile Include="Extensions.cs" />
+    <Compile Include="FilePointer.cs" />
     <Compile Include="Form.cs" />
+    <Compile Include="FormData.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="WordCleanup.cs" />
     <Compile Include="XHTMLr.cs" />
